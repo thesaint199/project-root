@@ -1,0 +1,40 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+      - name: Run Linting
+        run: flake8 .
+      - name: Run Tests
+        run: pytest
+      - name: Build Docker Image
+        run: docker build -t hello-world-app .
+      - name: Scan for Vulnerabilities
+        run: docker run --rm aquasec/trivy hello-world-app
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to AWS
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          aws-region: us-east-1
+      - name: Deploy using CDK
+        run: cdk deploy --require-approval never
